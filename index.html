@@ -61,7 +61,58 @@
 
         static loadingIndicator = '<p class="text-stone-50">Loading...</p>';
 
-        init() {
+        init = async () => {
+          this.showVehicleLoadingIndicator();
+          this.showStarshipLoadingIndicator();
+
+          const [vehiclesResponse, starshipsResponse] = 
+            await Promise.allSettled([
+              this.loadStarships().then(vehicles => {
+                return Promise.all(
+                vehicles.map(async (vehicle) => ({ 
+                ...vehicle,
+                filmNames: await this.loadFilms(vehicle)
+              })));
+            }),
+              this.loadStarships().then(starships => {
+                return Promise.all(
+                  starships.map(async (starship) => ({
+                    ...starship,
+                    filmNames: await this.loadFilms(starship)
+                  }))
+                )
+              })
+            ]);
+
+            if (vehiclesResponse.status === 'fulfilled') {
+              document.getElementById('vehicles')
+              .innerHTML = vehiclesResponse.value.map(this.renderVehicle).slice(0, 6).join('');
+            } else {
+              document.getElementById('vehicles').innerHTML =
+               '<p class="text-stone-50">Something went wrong</p>';
+            }
+
+            if (starshipsResponse.status === 'fulfilled') {
+              document.getElementById('starships')
+              .innerHTML = starshipsResponse.value.map(this.renderVehicle).slice(0, 6).join('');
+            } else {
+              document.getElementById('vehicles').innerHTML =
+               '<p class="text-stone-50">Something went wrong</p>';
+            }
+        }
+
+        loadVehicle() {
+          return delay().then(() => {
+            return fetch("https://swapi.info/api/vehicles")
+              .then((res) => res.json())
+            });
+        }
+
+        loadStarships() {
+          return delay().then(() => {
+            return fetch("https://swapi.info/api/starships")
+              .then((res) => res.json())
+            });
         }
 
         renderVehicle({ name, manufacturer, cost_in_credits, filmNames = [] }) {
@@ -79,10 +130,19 @@
         showStarshipLoadingIndicator() {
           document.getElementById('starships').innerHTML = StarWarsApp.loadingIndicator;
         }
+
+        loadFilms({ films }) {
+          return Promise.all(
+            films.map(url => fetch(url)
+              .then(res => res.json())
+              .then(({ title }) => title)
+          ));
+
+        }
       }
 
-      const app = new StarWarsApp();
-      app.init();
+      const { init } = new StarWarsApp();
+      init();
     </script>
   </body>
 </html>
